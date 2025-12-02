@@ -21,14 +21,17 @@ if art_path is None:
     st.error("❌ Folder artifacts/ tidak ditemukan. Upload tokenizer.pkl, sku_embeddings.pkl, textcnn_model.pt, products.csv.")
     st.stop()
 
-tokenizer, sku_list, product_embeddings, model = load_artifacts(art_path)
+tokenizer, sku_list, product_embeddings, model, df_products = load_artifacts(art_path)
+
 
 recommender = Recommender(
     tokenizer=tokenizer,
     sku_list=sku_list,
     product_embeddings=product_embeddings,
-    model=model
+    model=model,
+    df_products=df_products
 )
+
 
 # ---------- SIDEBAR ----------
 st.sidebar.header("Pengaturan")
