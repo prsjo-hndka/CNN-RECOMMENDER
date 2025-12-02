@@ -40,24 +40,39 @@ st.markdown("---")
 q = st.text_input("Masukkan masakan atau nama produk (contoh: 'rendang' atau 'ayam boneless dada')")
 
 if st.button("Cari"):
-    if not q.strip():
-        st.warning("⚠️ Masukkan query terlebih dahulu.")
+    if not q:
+        st.warning("Masukkan query teks dulu.")
     else:
-        query = normalize_query_text(q)
-        results = recommender.query(query, top_k=top_k)
-        st.success(f"Menampilkan {len(results)} rekomendasi untuk: **{q}**")
+        seq = tokenizer.texts_to_sequences([q])
+        pad = pad_sequences(seq, maxlen=28, padding='post')
 
-        cols_per_row = 2
-        for i in range(0, len(results), cols_per_row):
-            cols = st.columns(cols_per_row)
-            for j, r in enumerate(results[i:i+cols_per_row]):
-                with cols[j]:
-                    render_recommendation_card(r)
-                    summary = (
-                        f"SKU: {r['SKU']}\n"
-                        f"Nama: {r['Nama Barang']}\n"
-                        f"Skor: {r['score']:.3f}\n"
-                        f"Rekomendasi penggunaan:\n- " + "\n- ".join(r.get('usage', []))
-                    )
-                    copy_button(summary, key=f"copy_{i+j}")
+        # Dapatkan query embedding
+        import torch
+        with torch.no_grad():
+            q_emb = model(torch.tensor(pad).to(DEVICE)).cpu().numpy()[0]
+
+        q_norm = q_emb / (np.linalg.norm(q_emb) + 1e-9)
+        sims = product_embeddings_norm.dot(q_norm)
+
+        idxs = np.argsort(sims)[::-1][:k]
+
+        st.subheader("Hasil Rekomendasi:")
+
+        for i in idxs:
+            sku = sku_list[i]
+            nama = df.loc[i, name_col]  # ambil nama produk
+            score = float(sims[i])
+
+            st.markdown(
+                f"""
+                <div style="padding:15px; margin:10px 0; border-radius:10px;
+                            background:#f2f2f2; border:1px solid #ccc;">
+                    <h4 style="margin:0;">{nama}</h4>
+                    <p style="margin:5px 0;"><b>SKU:</b> {sku}</p>
+                    <p style="margin:5px 0;"><b>Kecocokan:</b> {score:.3f}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
 
